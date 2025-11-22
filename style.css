@@ -54,3 +54,24 @@
 .hint-btn:hover {
     background: #e68900;
 }
+
+.mission-select {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.mission-btn {
+    padding: 12px 20px;
+    font-size: 18px;
+    color: white;
+    background: #4caf50;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
