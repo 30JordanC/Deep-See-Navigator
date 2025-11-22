@@ -27,3 +27,13 @@ function gameLoop() {
     render.update(gameState);
     requestAnimationFrame(gameLoop);
 }
+
+document.getElementById("hintButton").addEventListener("click", () => {
+    const mission = MISSIONS[currentMissionIndex];
+    if (mission && mission.hintAI) {
+        AI.hint(mission.hintAI);
+    } else {
+        AI.say("No hint available.");
+    }
+});
+
