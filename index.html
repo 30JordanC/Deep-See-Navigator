@@ -1,22 +1,204 @@
-<!-- ======================== -->
-<!--   MISSION + AI PANEL     -->
-<!-- ======================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Abyssal Explorer</title>
 
-<div id="ui-container">
+  <!-- All styling is inline here for simplicity -->
+  <style>
+    /* GENERAL PAGE LOOK (deep sea HUD feel) */
+    body {
+      background-color: #050510;  /* Deep sea black/blue */
+      color: #00ffcc;             /* Sci-fi HUD text color */
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      margin: 0;
+      padding: 16px;
+    }
 
-    <!-- Current Mission Box -->
-    <div id="missionBox" class="ui-box">
-        <h3>Current Mission</h3>
-        <p id="missionText"><em>No mission active yet.</em></p>
+    /* HUD AT THE TOP */
+    #hud-panel {
+      border-bottom: 2px solid #00ffcc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    #hud-panel h1 {
+      margin: 0 0 8px 0;
+    }
+
+    .stat-box {
+      display: inline-block;
+      padding: 8px 12px;
+      border: 1px solid #00ffcc;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      text-align: left;
+    }
+
+    .stat-box p {
+      margin: 2px 0;
+    }
+
+    .stat-box span {
+      color: #ffffff;
+    }
+
+    .mission-box {
+      margin-top: 8px;
+    }
+
+    
+    /* THE GRID SYSTEM (container for all rows) */
+#game-container {
+    display: inline-block;
+    border: 2px solid #00ffcc;
+    margin-top: 20px;
+    background-color: #000;
+    font-size: 0;          /* kill gaps between inline-block tiles */
+}
+
+/* Each row is a single “line” of tiles */
+.map-row {
+    display: block;
+    height: 24px;          /* exactly one tile tall */
+    white-space: nowrap;   /* prevent tiles from wrapping to next line */
+}
+
+/* Individual tiles – fixed 24x24 box, content cannot resize it */
+.map-tile {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    box-sizing: border-box;
+    border: 1px solid #1a1a2e;  /* base grid border */
+    margin: 0;
+    padding: 0;
+    position: relative;         /* for ::after + icons */
+}
+
+/* BIOME COLORS stay the same */
+.biome-plain        { background-color: #0b1026; }
+.biome-slope        { background-color: #1e3a5f; }
+.biome-seamount     { background-color: #2e5f5f; }
+.biome-trench       { background-color: #000000; }
+.biome-hydrothermal { background-color: #3b1e1e; }
+
+/* HAZARD HIGHLIGHT – red box INSIDE the tile, no size change */
+.hazard {
+    /* keep normal border so size matches all other tiles */
+    border-color: #1a1a2e;
+}
+
+.hazard::after {
+    content: "";
+    position: absolute;
+    inset: 2px;               /* distance from each edge */
+    border: 2px solid red;    /* thick red warning box */
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+/* Submarine icon – centered, doesn’t affect layout */
+.submarine {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    filter: drop-shadow(0 0 5px #fff);
+    animation: pulse 2s infinite;
+}
+
+/* POI icon – small marker in bottom-right, no layout effect */
+.icon {
+    position: absolute;
+    right: 2px;
+    bottom: 1px;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+
+    /* Movement controls (we’ll wire these up later) */
+    .controls {
+      margin-top: 16px;
+    }
+
+    .horizontal {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 4px 0;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #004433;
+      color: white;
+      text-decoration: none;
+      margin: 2px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #006655;
+    }
+
+    /* Debug log at the bottom (same as before) */
+    #log {
+      text-align: left;
+      margin-top: 16px;
+      font-size: 12px;
+      color: #9ca3af;
+      max-height: 250px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HUD: will be filled in by main.js using world data + player state -->
+  <div id="hud-panel">
+    <h1>SUBMARINE SYSTEMS</h1>
+
+    <div class="stat-box">
+      <p>DEPTH: <span id="hud-depth">-- m</span></p>
+      <p>PRESSURE: <span id="hud-pressure">-- atm</span></p>
+      <p>TEMP: <span id="hud-temp">-- °C</span></p>
+      <p>HULL INTEGRITY: <span id="hud-health">100%</span></p>
+      <p>BATTERY/HUNGER: <span id="hud-hunger">100%</span></p>
     </div>
 
-    <!-- AI Assistant Box -->
-    <div id="aiPanel" class="ai-box"></div>
+    <div class="mission-box">
+      <p>CURRENT MISSION: <span id="mission-text">Explore the abyssal plain.</span></p>
+    </div>
+  </div>
 
-    <!-- Hint Button -->
-    <button id="hintButton" class="hint-btn">Need a Hint?</button>
+  <!-- The grid map: renderer.js will generate the rows/tiles here -->
+  <div id="game-container"></div>
 
-</div>
+  <!-- Placeholder controls (we’ll hook them up to movement later) -->
+  <div class="controls">
+    <div>
+      <button id="btn-up" class="btn">⬆️ N</button>
+    </div>
+    <div class="horizontal">
+      <button id="btn-left" class="btn">⬅️ W</button>
+      <button id="btn-right" class="btn">➡️ E</button>
+    </div>
+    <div>
+      <button id="btn-down" class="btn">⬇️ S</button>
+    </div>
+  </div>
 
-<div id="missionSelectScreen" class="mission-select"></div>
+  <!-- Debug log -->
+  <pre id="log"></pre>
 
+  <!-- Your JS (data loader + renderer + HUD logic) -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
