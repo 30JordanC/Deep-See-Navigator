@@ -1,207 +1,270 @@
-// --- simple CSV parser (no quotes support) ---
+// js/worldLoader.js
+// Loads all CSV data and builds a 2D "world" array of cells,
+// each cell enriched with hazards, POIs, resources, life, corals, and currents.
+
+async function loadCSV(path) {
+  const res = await fetch(path);
+  if (!res.ok) {
+    throw new Error(`Failed to load ${path}: ${res.status}`);
+  }
+  const text = await res.text();
+  return parseCSV(text);
+}
+
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  const headers = lines[0].split(",");
+  const lines = text.trim().split("\n");
+  if (lines.length <= 1) return [];
+
+  const headers = lines[0].split(",").map(h => h.trim());
   const rows = [];
 
   for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cols = lines[i].split(",");
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(",");
+
     const obj = {};
     headers.forEach((h, idx) => {
-      obj[h.trim()] = cols[idx] !== undefined ? cols[idx].trim() : "";
+      const raw = parts[idx] !== undefined ? parts[idx].trim() : "";
+      // Try to parse numbers, otherwise keep string
+      const num = Number(raw);
+      obj[h] = raw === "" || Number.isNaN(num) ? raw : num;
     });
+
     rows.push(obj);
   }
   return rows;
 }
 
-// --- load a text file ---
-async function loadText(path) {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Failed to load ${path}: ${res.status}`);
-  return await res.text();
+/**
+ * Build an empty 2D grid [rows][cols]
+ */
+function createEmptyWorld(rows, cols) {
+  const world = new Array(rows);
+  for (let r = 0; r < rows; r++) {
+    world[r] = new Array(cols).fill(null);
+  }
+  return world;
 }
 
-// --- load metadata.json ---
-async function loadMetadata() {
-  const res = await fetch("data/metadata.json");
-  if (!res.ok) throw new Error("Failed to load metadata.json");
-  return await res.json();
-}
+/**
+ * Attach base cell data from cells.csv
+ */
+function applyCells(world, cellsData) {
+  for (const c of cellsData) {
+    const row = Number(c.row);
+    const col = Number(c.col);
+    if (!world[row] || col < 0 || col >= world[row].length) continue;
 
-// --- main entry ---
-export async function loadWorld() {
-  const metadata = await loadMetadata();
-  const rows = metadata.grid.rows;  // should be 50
-  const cols = metadata.grid.cols;  // should be 50
+    world[row][col] = {
+      row,
+      col,
+      x_km: c.x_km,
+      y_km: c.y_km,
+      lat: c.lat,
+      lon: c.lon,
+      depth_m: c.depth_m,
+      pressure_atm: c.pressure_atm,
+      biome: c.biome,
+      temperature_c: c.temperature_c,
+      light_intensity: c.light_intensity,
+      terrain_roughness: c.terrain_roughness,
 
-  // initialize world array
-  const world = Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ({
-      depth_m: null,
-      pressure_atm: null,
-      biome: null,
-      temperature_c: null,
-      light_intensity: null,
-      terrain_roughness: null,
-      x_km: null,
-      y_km: null,
-      lat: null,
-      lon: null,
-
-      current: null,
+      // Collections we’ll fill from other CSVs:
       hazards: [],
-      corals: null,
+      poi: [],
       resources: [],
       life: [],
-      poi: []
-    }))
-  );
+      corals: null,
 
-  // ---- CELLS CSV ----
-  {
-    const text = await loadText("data/cells.csv");
-    const rowsArr = parseCSV(text);
-
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.x_km = parseFloat(row.x_km);
-      cell.y_km = parseFloat(row.y_km);
-      cell.lat = parseFloat(row.lat);
-      cell.lon = parseFloat(row.lon);
-      cell.depth_m = parseFloat(row.depth_m);
-      cell.pressure_atm = parseFloat(row.pressure_atm);
-      cell.biome = row.biome;
-      cell.temperature_c = parseFloat(row.temperature_c);
-      cell.light_intensity = parseFloat(row.light_intensity);
-      cell.terrain_roughness = parseFloat(row.terrain_roughness);
-    }
+      // Currents (will be filled later)
+      u_mps: 0,
+      v_mps: 0,
+      speed_mps: 0,
+      current_stability: null,
+      flow_direction: null,
+    };
   }
+}
 
-  // ---- CURRENTS CSV ----
-  {
-    const text = await loadText("data/currents.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * Attach hazards from hazards.csv
+ */
+function applyHazards(world, hazardsData) {
+  for (const h of hazardsData) {
+    const row = Number(h.row);
+    const col = Number(h.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.current = {
-        u_mps: parseFloat(row.u_mps),
-        v_mps: parseFloat(row.v_mps),
-        speed_mps: parseFloat(row.speed_mps),
-        stability: row.stability
-      };
-    }
+    cell.hazards.push({
+      type: h.type,
+      severity: h.severity,
+      notes: h.notes,
+    });
   }
+}
 
-  // ---- HAZARDS CSV ----
-  {
-    const text = await loadText("data/hazards.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * Attach POIs from poi.csv
+ */
+function applyPOI(world, poiData) {
+  for (const p of poiData) {
+    const row = Number(p.row);
+    const col = Number(p.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.hazards.push({
-        type: row.type,
-        severity: parseInt(row.severity),
-        notes: row.notes
-      });
-    }
+    cell.poi.push({
+      id: p.id,
+      category: p.category,
+      label: p.label,
+      description: p.description,
+      research_value: p.research_value,
+    });
   }
+}
 
-  // ---- CORALS CSV ----
-  {
-    const text = await loadText("data/corals.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * Attach resources from resources.csv
+ */
+function applyResources(world, resourcesData) {
+  for (const r of resourcesData) {
+    const row = Number(r.row);
+    const col = Number(r.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.corals = {
-        coral_cover_pct: parseFloat(row.coral_cover_pct),
-        health_index: parseFloat(row.health_index),
-        bleaching_risk: parseFloat(row.bleaching_risk),
-        biodiversity_index: parseFloat(row.biodiversity_index)
-      };
-    }
+    cell.resources.push({
+      type: r.type,
+      family: r.family,
+      abundance: r.abundance,
+      purity: r.purity,
+      extraction_difficulty: r.extraction_difficulty,
+      environmental_impact: r.environmental_impact,
+      economic_value: r.economic_value,
+      description: r.description,
+    });
   }
+}
 
-  // ---- RESOURCES CSV ----
-  {
-    const text = await loadText("data/resources.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * Attach life from life.csv
+ */
+function applyLife(world, lifeData) {
+  for (const l of lifeData) {
+    const row = Number(l.row);
+    const col = Number(l.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.resources.push({
-        family: row.family,
-        type: row.type,
-        abundance: parseFloat(row.abundance),
-        purity: parseFloat(row.purity),
-        extraction_difficulty: parseFloat(row.extraction_difficulty),
-        environmental_impact: parseFloat(row.environmental_impact),
-        economic_value: parseFloat(row.economic_value),
-        description: row.description
-      });
-    }
+    cell.life.push({
+      species: l.species,
+      avg_depth_m: l.avg_depth_m,
+      density: l.density,
+      threat_level: l.threat_level,
+      behavior: l.behavior,
+      trophic_level: l.trophic_level,
+      prey_species: l.prey_species,
+    });
   }
+}
 
-  // ---- LIFE CSV ----
-  {
-    const text = await loadText("data/life.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * Attach coral info from corals.csv
+ */
+function applyCorals(world, coralData) {
+  for (const c of coralData) {
+    const row = Number(c.row);
+    const col = Number(c.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
-
-      cell.life.push({
-        species: row.species,
-        avg_depth_m: parseFloat(row.avg_depth_m),
-        density: parseFloat(row.density),
-        threat_level: parseInt(row.threat_level),
-        behavior: row.behavior,
-        trophic_level: parseInt(row.trophic_level),
-        prey_species: row.prey_species ? row.prey_species.split(";") : []
-      });
-    }
+    cell.corals = {
+      coral_cover_pct: c.coral_cover_pct,
+      health_index: c.health_index,
+      bleaching_risk: c.bleaching_risk,
+      biodiversity_index: c.biodiversity_index,
+    };
   }
+}
 
-  // ---- POI CSV ----
-  {
-    const text = await loadText("data/poi.csv");
-    const rowsArr = parseCSV(text);
+/**
+ * 🔹 Attach currents from currents.csv
+ *    (THIS is what makes currents work in the game)
+ */
+function applyCurrents(world, currentData) {
+  for (const c of currentData) {
+    const row = Number(c.row);
+    const col = Number(c.col);
+    const cell = world[row] && world[row][col];
+    if (!cell) continue;
 
-    for (const row of rowsArr) {
-      const r = parseInt(row.row);
-      const c = parseInt(row.col);
-      const cell = world[r][c];
+    const u = Number(c.u_mps) || 0;
+    const v = Number(c.v_mps) || 0;
+    const speed = Number(c.speed_mps) || 0;
+    const stability = c.stability || "unknown";
+    const dir = c.flow_direction || "none";
 
-      cell.poi.push({
-        id: row.id,
-        category: row.category,
-        label: row.label,
-        description: row.description,
-        research_value: parseFloat(row.research_value)
-      });
-    }
+    // store raw fields
+    cell.u_mps = u;
+    cell.v_mps = v;
+    cell.speed_mps = speed;
+    cell.current_stability = stability;
+    cell.flow_direction = dir;
+
+    // 🔥 Create the object YOUR API expects:
+    cell.current = {
+      u_mps: u,
+      v_mps: v,
+      speed_mps: speed,
+      stability: stability,
+      flow_direction: dir,
+    };
   }
+}
+
+/**
+ * MAIN ENTRYPOINT
+ */
+export async function loadWorld() {
+  // Load metadata
+  const metaRes = await fetch("data/metadata.json");
+  if (!metaRes.ok) {
+    throw new Error(`Failed to load metadata.json: ${metaRes.status}`);
+  }
+  const metadata = await metaRes.json();
+  const rows = metadata.grid.rows;
+  const cols = metadata.grid.cols;
+
+  // Load all CSVs in parallel
+  const [
+    cellsData,
+    hazardsData,
+    poiData,
+    currentsData,
+    resourcesData,
+    lifeData,
+    coralData,
+  ] = await Promise.all([
+    loadCSV("data/cells.csv"),
+    loadCSV("data/hazards.csv"),
+    loadCSV("data/poi.csv"),
+    loadCSV("data/currents.csv"),
+    loadCSV("data/resources.csv"),
+    loadCSV("data/life.csv"),
+    loadCSV("data/corals.csv"),
+  ]);
+
+  // Build world grid and enrich it
+  const world = createEmptyWorld(rows, cols);
+  applyCells(world, cellsData);
+  applyHazards(world, hazardsData);
+  applyPOI(world, poiData);
+  applyResources(world, resourcesData);
+  applyLife(world, lifeData);
+  applyCorals(world, coralData);
+  applyCurrents(world, currentsData);   // 🔥 currents wired in here
 
   return { world, metadata };
 }

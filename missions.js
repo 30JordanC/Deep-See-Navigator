@@ -1,73 +1,77 @@
-
-// missions.js
+// js/missions.js
+// 5 missions, all based on movement & environment. No scanning actions needed.
 
 const MISSIONS = [
-
   {
     id: 1,
-    title: "First Descent",
-    description: "Navigate to the marked Point of Interest and scan it within 60 seconds.",
-    type: "reach_and_scan",
-    targetType: "poi",
-    count: 1,
+    title: "First Contact",
+    description: "Reach any Point of Interest (📍) within 60 seconds.",
+    type: "reach_poi",
+    targetCount: 1,
     timeLimit: 60,
 
-    // What the mini AI assistant says based on games events.
-    introAI: "Mission 1 active. We've detected an anomaly in this sector — possibly a shipwreck or mineral field. Move to the marker and perform a scan.",
-    successAI: "Scan received. Excellent work on your first descent.",
-    failureAI: "Mission failed. The scan was not completed in time.",
-    hintAI: "POIs usually stand out on your sensors — try checking calmer regions with stable currents."
+    introAI: "Mission 1 active. Reach any Point of Interest beacon before time runs out.",
+    successAI: "Target reached. Telemetry from the beacon looks excellent.",
+    failureAI: "Mission failed. No beacon was reached in time.",
+    hintAI: "Head toward regions with fewer hazards and watch for 📍 markers on the grid."
   },
 
   {
     id: 2,
-    title: "Sea Ride",
-    description: "Ride the strong current corridor and reach the exit safely.",
-    type: "navigate_corridor",
-    targetType: "exit",
-    timeLimit: 90,
+    title: "Survey the Abyss",
+    description: "Visit 3 different Points of Interest anywhere on the map.",
+    type: "multi_poi",
+    targetCount: 3,
+    timeLimit: 200,
 
-    introAI: "Mission 2 online. A strong current flows through this region — stay in control and let it carry you, but avoid being pushed into danger.",
-    successAI: "Great navigation! Your trajectory through the current will assist future missions.",
-    failureAI: "You were swept off course. Try adjusting your angle as the current shifts.",
-    hintAI: "The current pushes hardest near its center — stick to the edges to maintain control."
+    introAI: "Mission 2 active. We need a broader survey. Visit three unique Points of Interest.",
+    successAI: "Survey complete. We've mapped a valuable section of the abyssal terrain.",
+    failureAI: "Mission failed. Insufficient Points of Interest were reached in time.",
+    hintAI: "After reaching one POI, adjust your course laterally or by depth to find others."
   },
 
   {
     id: 3,
-    title: "Vive Les Vents",
-    description: "Locate and scan 3 hydrothermal vents.",
-    type: "scan_hazard",
-    targetType: "thermal_vent",
-    count: 3,
-    timeLimit: 150,
+    title: "Deep Dive",
+    description: "Reach a depth of at least 6000 meters.",
+    type: "reach_depth",
+    targetDepth: 6000,
+    timeLimit: 180,
 
-    introAI: "Mission 3 active. Hydrothermal vents detected. Be cautious — temperatures may exceed 400°C. Approach slowly and scan each vent.",
-    successAI: "Vent data captured. These readings are incredibly valuable for deep-sea research.",
-    failureAI: "Hull integrity compromised. Vent regions are extremely dangerous — keep your distance.",
-    hintAI: "Vent clusters often appear near ridges or canyon edges — watch for pressure spikes."
+    introAI: "Mission 3 active. Take the sub down to 6000 meters. Monitor hull integrity closely.",
+    successAI: "Depth target achieved. These deep readings are invaluable.",
+    failureAI: "Mission failed. We never reached the requested depth window.",
+    hintAI: "Look for darker, trench-like regions. Depth increases as you head toward the lowest basins."
   },
 
   {
     id: 4,
-    title: "Apex Territory",
-    description: "Escape the predator-dominated biome within 3 minutes.",
-    type: "escape_zone",
-    targetType: "predator_zone",
+    title: "Pressure Test",
+    description: "Reach a region where pressure exceeds 500 atmospheres.",
+    type: "reach_pressure",
+    targetPressure: 500,
     timeLimit: 180,
 
-    introAI: "Mission 4 online. Warning: You’ve drifted into an apex predator biome. Threat levels are high. Escape the region before the predators converge.",
-    successAI: "You made it out. Your escape path will be logged for future submersible pilots.",
-    failureAI: "Predator contact detected. Mission failed.",
-    hintAI: "Predator zones often align with low-light, high-pressure areas. Move toward safer biomes like plains or slopes."
+    introAI: "Mission 4 active. We need high-pressure data. Find a region where pressure exceeds 500 atmospheres.",
+    successAI: "Pressure threshold met. Hull telemetry confirms structural resilience.",
+    failureAI: "Mission failed. The sub never encountered sufficient pressure.",
+    hintAI: "Depth and pressure are linked — deeper zones will show higher pressure in your HUD."
+  },
+
+  {
+    id: 5,
+    title: "Hazard Run",
+    description: "Enter 3 different hazard tiles (outlined in red) without being destroyed.",
+    type: "visit_hazards",
+    targetCount: 3,
+    timeLimit: 220,
+
+    introAI: "Mission 5 active. Approach three distinct hazard zones to assess their risk profile. Stay alert.",
+    successAI: "Hazard traversal successful. Your path will help future pilots avoid the worst zones.",
+    failureAI: "Mission failed. The hazard run could not be completed.",
+    hintAI: "Hazard zones are outlined in red. Move carefully; each unique hazard tile counts once."
   }
+];
 
-]; 
-
-function updateMissionBox(mission) {
-    const box = document.getElementById("missionText");
-    box.textContent = mission.description;
-}
-updateMissionBox(MISSIONS[currentMissionIndex]);
-AI.missionStart(MISSIONS[currentMissionIndex]);
-
+// expose globally so UI.js and main.js can use it
+window.MISSIONS = MISSIONS;
