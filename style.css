@@ -1,0 +1,56 @@
+/* Container for mission + assistant + buttons */
+#ui-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 20; /* ensures it appears above the canvas */
+}
+
+/* Mission Box */
+.ui-box {
+    background: rgba(255, 255, 255, 0.9);
+    border-left: 5px solid #4caf50;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+#missionBox h3 {
+    margin: 0 0 8px 0;
+}
+
+/* AI Assistant Panel */
+.ai-box {
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border-left: 5px solid #4fc3f7;
+    padding: 12px 15px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    min-height: 40px;
+}
+
+.ai-box.visible {
+    opacity: 1;
+}
+
+/* Hint Button */
+.hint-btn {
+    background: #ff9800;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.hint-btn:hover {
+    background: #e68900;
+}
