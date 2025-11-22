@@ -37,3 +37,8 @@ document.getElementById("hintButton").addEventListener("click", () => {
     }
 });
 
+window.addEventListener("DOMContentLoaded", () => {
+    AI.init();
+    UI_init();
+});
+
