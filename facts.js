@@ -76,3 +76,12 @@ export function AI_fact(type) {
 
     AI.say(fact, 6000); // speak the fact for 6 seconds
 }
+
+function checkBiomeFacts(world, sub) {
+    const cell = world.getCell(sub.row, sub.col);
+    if (cell && cell.biome && Math.random() < 0.15) { 
+        // 15% chance per move (prevents spam)
+        AI_fact(cell.biome.toLowerCase());
+    }
+}
+
