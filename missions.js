@@ -91,4 +91,10 @@ const MISSIONS = [
 
 ]; **/
 
+function updateMissionBox(mission) {
+    const box = document.getElementById("missionText");
+    box.textContent = mission.description;
+}
+updateMissionBox(MISSIONS[currentMissionIndex]);
+AI.missionStart(MISSIONS[currentMissionIndex]);
 
